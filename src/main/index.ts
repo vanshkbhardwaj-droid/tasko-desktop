@@ -5,12 +5,14 @@ import { z } from "zod";
 import { LocalDatabase } from "./database";
 import { createInvoicePdf } from "./pdf";
 import { LocalCopilot } from "./copilot";
+import { LaunchRecovery } from "./recovery";
 import type { EntityKind, InvoiceDraft } from "@shared/contracts";
 
 let mainWindow: BrowserWindow | undefined;
 let tray: Tray | undefined;
 let database: LocalDatabase;
 let copilot: LocalCopilot;
+let launchRecovery: LaunchRecovery;
 const entitySchema = z.enum(["customer", "lead", "job", "task", "invoice", "event", "expense"]);
 const recordSchema = z.record(z.string(), z.unknown()).refine((item) => typeof item.title === "string" || item.title === undefined, "Title must be text");
 const invoiceSchema = z.object({ customerId: z.string().optional(), title: z.string().min(1).max(180), currency: z.enum(["AED", "USD", "EUR", "GBP", "SAR"]), discount: z.number().min(0), dueAt: z.string().optional(), kind: z.enum(["invoice", "quote", "credit-note", "receipt"]), lines: z.array(z.object({ description: z.string().min(1), quantity: z.number().positive(), unitPrice: z.number().min(0), taxRate: z.number().min(0).max(100) })).min(1) });
@@ -91,14 +93,25 @@ function registerIpc() {
 app.enableSandbox();
 app.setAppUserModelId("com.vansh.tasko");
 app.whenReady().then(() => {
+  launchRecovery = new LaunchRecovery(app.getPath("userData"), process.resourcesPath);
+  const recovery = launchRecovery.begin(app.getVersion());
+  if (recovery.needsRestore && launchRecovery.restorePreviousRuntime()) {
+    app.relaunch();
+    app.exit(0);
+    return;
+  }
   database = new LocalDatabase(join(app.getPath("userData"), "tasko.sqlite"));
   copilot = new LocalCopilot(database, process.resourcesPath);
   registerIpc(); configureMenu(); createWindow(); createTray();
   globalShortcut.register("CommandOrControl+Shift+Space", () => { mainWindow?.show(); mainWindow?.focus(); send("tasko:quick-capture", true); });
   autoUpdater.autoDownload = true;
-  autoUpdater.on("update-downloaded", (info) => send("tasko:update-ready", { version: info.version, notes: info.releaseNotes }));
+  autoUpdater.on("update-downloaded", (info) => {
+    const snapshotted = launchRecovery.snapshotBeforeUpdate(info.version);
+    send("tasko:update-ready", { version: info.version, notes: info.releaseNotes, snapshotted });
+  });
   void checkForUpdates();
   setInterval(() => void checkForUpdates(), 4 * 60 * 60 * 1000);
+  setTimeout(() => launchRecovery.markHealthy(app.getVersion()), 30_000);
   app.on("activate", () => { if (!mainWindow) createWindow(); });
 });
 
