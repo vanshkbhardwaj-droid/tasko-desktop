@@ -1,0 +1,10 @@
+{
+  "source": "Tasko editable public-holiday planning reference",
+  "updated": "2026-10-24",
+  "note": "Islamic holidays are lunar-calendar based; confirm official UAE announcements before customer commitments.",
+  "uae": {
+    "fixed": [{ "month": 1, "day": 1, "name": "New Year’s Day" }, { "month": 12, "day": 2, "name": "National Day" }, { "month": 12, "day": 3, "name": "National Day holiday" }],
+    "years": [2025, 2026, 2027, 2028, 2029, 2030]
+  },
+  "markets": ["United Arab Emirates", "Saudi Arabia", "Qatar", "Bahrain", "Oman", "United Kingdom", "United States", "European Union"]
+}

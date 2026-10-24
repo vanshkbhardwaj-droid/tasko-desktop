@@ -1,0 +1,13 @@
+{
+  "source": "Tasko editable tax-rate presets",
+  "updated": "2026-10-24",
+  "notice": "These are editable starting points only. Tax treatment should be confirmed with a qualified accountant.",
+  "presets": [
+    { "market": "United Arab Emirates", "label": "Standard VAT", "rate": 5 },
+    { "market": "Saudi Arabia", "label": "Standard VAT", "rate": 15 },
+    { "market": "Bahrain", "label": "Standard VAT", "rate": 10 },
+    { "market": "Oman", "label": "Standard VAT", "rate": 5 },
+    { "market": "Qatar", "label": "No VAT preset", "rate": 0 },
+    { "market": "International", "label": "Zero-rated / confirm", "rate": 0 }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "updated": "2026-10-24",
+  "invoiceTemplates": ["Progress payment", "Deposit request", "Final invoice", "Credit note"],
+  "quoteTemplates": ["Interior consultation", "Site visit", "Project scope"],
+  "messageTemplates": ["Follow-up after quote", "Appointment reminder", "Payment received"],
+  "automationTemplates": ["Nudge overdue task", "Follow-up qualified lead", "Prepare weekly review"],
+  "sampleDataSets": ["Small service studio", "Property maintenance team", "Independent consultant"]
+}

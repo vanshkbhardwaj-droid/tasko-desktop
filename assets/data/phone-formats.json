@@ -1,0 +1,11 @@
+{
+  "source": "Tasko phone-format reference",
+  "countries": [
+    { "country": "United Arab Emirates", "iso": "AE", "callingCode": "+971", "nationalExample": "50 123 4567" },
+    { "country": "Saudi Arabia", "iso": "SA", "callingCode": "+966", "nationalExample": "50 123 4567" },
+    { "country": "Qatar", "iso": "QA", "callingCode": "+974", "nationalExample": "3312 3456" },
+    { "country": "Bahrain", "iso": "BH", "callingCode": "+973", "nationalExample": "3600 0000" },
+    { "country": "Oman", "iso": "OM", "callingCode": "+968", "nationalExample": "9212 3456" },
+    { "country": "United Kingdom", "iso": "GB", "callingCode": "+44", "nationalExample": "7700 900123" }
+  ]
+}

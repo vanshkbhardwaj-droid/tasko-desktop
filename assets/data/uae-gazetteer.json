@@ -1,0 +1,13 @@
+{
+  "source": "Tasko offline UAE and Gulf place reference",
+  "updated": "2026-10-24",
+  "areas": [
+    { "city": "Dubai", "areas": ["Al Barsha", "Business Bay", "Dubai Design District", "Dubai Marina", "Downtown Dubai", "Jumeirah", "Jumeirah Village Circle", "Palm Jumeirah"] },
+    { "city": "Abu Dhabi", "areas": ["Al Reem Island", "Al Raha", "Khalifa City", "Saadiyat Island", "Yas Island"] },
+    { "city": "Sharjah", "areas": ["Al Majaz", "Al Nahda", "Muwaileh", "University City"] },
+    { "city": "Doha", "areas": ["The Pearl", "West Bay", "Msheireb", "Lusail"] },
+    { "city": "Riyadh", "areas": ["Al Olaya", "Hittin", "KAFD", "Al Malqa"] },
+    { "city": "Manama", "areas": ["Seef", "Juffair", "Amwaj Islands", "Diplomatic Area"] },
+    { "city": "Muscat", "areas": ["Al Mouj", "Qurum", "Madinat Al Sultan Qaboos", "Ruwi"] }
+  ]
+}

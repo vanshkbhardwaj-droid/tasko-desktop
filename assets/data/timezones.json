@@ -1,0 +1,12 @@
+{
+  "source": "Tasko offline timezone reference",
+  "updated": "2026-10-24",
+  "zones": [
+    { "id": "Asia/Dubai", "label": "UAE", "utcOffset": "+04:00", "observesDst": false },
+    { "id": "Asia/Riyadh", "label": "Saudi Arabia", "utcOffset": "+03:00", "observesDst": false },
+    { "id": "Asia/Qatar", "label": "Qatar", "utcOffset": "+03:00", "observesDst": false },
+    { "id": "Asia/Bahrain", "label": "Bahrain", "utcOffset": "+03:00", "observesDst": false },
+    { "id": "Asia/Muscat", "label": "Oman", "utcOffset": "+04:00", "observesDst": false },
+    { "id": "Europe/London", "label": "United Kingdom", "utcOffset": "seasonal", "observesDst": true }
+  ]
+}

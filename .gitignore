@@ -1,0 +1,11 @@
+node_modules/
+out/
+release/
+.cache/
+*.db
+*.db-shm
+*.db-wal
+.env
+.DS_Store
+assets/models/*.gguf
+build/*.iconset/
