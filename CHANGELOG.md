@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-10-24
+
+- Make CI build unsigned installers without implicit publishing, so release artifacts do not require a personal GitHub token in the workflow.
+
 ## 0.1.1 — 2026-10-24
 
 - Snapshot the runtime before an updater install and restore the previous local runtime after two consecutive update-launch crashes.
