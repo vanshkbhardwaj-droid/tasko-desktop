@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
-import type { AppPreferences, CalendarEvent, DashboardSnapshot, EmailDraft, EntityKind, InboxMessage, InvoiceDraft, RecordItem } from "@shared/contracts";
+import type { AppPreferences, CalendarEvent, DashboardSnapshot, EmailDraft, EntityKind, InboxMessage, InvoiceDraft, RecordItem, TeamMember } from "@shared/contracts";
 
 type Db = InstanceType<typeof Database>;
 
@@ -45,7 +45,9 @@ const migrations = [
    CREATE INDEX IF NOT EXISTS idx_events_range ON calendar_events(start_at, end_at);
    CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);`,
   `CREATE TABLE IF NOT EXISTS inbox_messages (id TEXT PRIMARY KEY, recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', opened_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-   CREATE INDEX IF NOT EXISTS idx_inbox_messages_updated ON inbox_messages(updated_at DESC);`
+   CREATE INDEX IF NOT EXISTS idx_inbox_messages_updated ON inbox_messages(updated_at DESC);`,
+  `CREATE TABLE IF NOT EXISTS team_members (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT, role TEXT NOT NULL, capacity INTEGER NOT NULL DEFAULT 40, status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS idx_team_members_status ON team_members(status);`
 ];
 
 function decode(row: Record<string, unknown>): RecordItem {
@@ -60,6 +62,11 @@ function decode(row: Record<string, unknown>): RecordItem {
 
 function decodeInboxMessage(row: Record<string, unknown>): InboxMessage {
   return { id: String(row.id), recipient: String(row.recipient), subject: String(row.subject), body: String(row.body), status: row.status === "opened" ? "opened" : "draft", openedAt: row.opened_at ? String(row.opened_at) : undefined, createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+}
+
+function decodeTeamMember(row: Record<string, unknown>): TeamMember {
+  const roles = ["owner", "admin", "manager", "staff"] as const;
+  return { id: String(row.id), name: String(row.name), email: row.email ? String(row.email) : undefined, role: roles.includes(String(row.role) as (typeof roles)[number]) ? String(row.role) as TeamMember["role"] : "staff", capacity: Number(row.capacity), status: row.status === "away" ? "away" : "active", createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
 }
 
 export class LocalDatabase {
@@ -79,6 +86,7 @@ export class LocalDatabase {
       this.db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES('schema_version', ?)").run(String(migrations.length));
     })();
     this.seed();
+    this.seedTeam();
   }
 
   private audit(action: string, kind?: EntityKind, id?: string, detail: Record<string, unknown> = {}) {
@@ -99,6 +107,11 @@ export class LocalDatabase {
     add("job", "Harbour House refresh", { subtitle: "Site team", status: "in-progress", amount: 42000, currency: "AED" });
     const start = new Date(); start.setHours(11, 0, 0, 0); const end = new Date(start); end.setHours(12, 0, 0, 0);
     this.create("event", { title: "Palm Grove site visit", subtitle: "Jumeirah · 30 min travel", startAt: start.toISOString(), endAt: end.toISOString(), travelMinutes: 30, assignee: "You" }, false);
+  }
+
+  private seedTeam() {
+    const count = this.db.prepare("SELECT COUNT(*) AS count FROM team_members").get() as { count: number };
+    if (Number(count.count) === 0) this.createTeamMember({ name: "You", role: "owner", capacity: 40, status: "active" }, false);
   }
 
   getPreferences(): AppPreferences {
@@ -214,6 +227,31 @@ export class LocalDatabase {
     const changes = this.db.prepare("DELETE FROM inbox_messages WHERE id = ?").run(id).changes;
     if (!changes) throw new Error("The selected email draft no longer exists.");
     this.audit("inbox.draft.removed", undefined, id);
+  }
+
+  listTeamMembers(): TeamMember[] {
+    return (this.db.prepare("SELECT * FROM team_members ORDER BY status, name COLLATE NOCASE").all() as Record<string, unknown>[]).map(decodeTeamMember);
+  }
+
+  createTeamMember(member: Omit<TeamMember, "id" | "createdAt" | "updatedAt">, audit = true): TeamMember {
+    const id = randomUUID(), now = isoNow();
+    this.db.prepare("INSERT INTO team_members(id,name,email,role,capacity,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+      .run(id, member.name, member.email ?? null, member.role, member.capacity, member.status, now, now);
+    if (audit) this.audit("team.member.created", undefined, id, { name: member.name, role: member.role });
+    return this.getTeamMember(id);
+  }
+
+  getTeamMember(id: string): TeamMember {
+    const row = this.db.prepare("SELECT * FROM team_members WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    if (!row) throw new Error("The selected team member no longer exists.");
+    return decodeTeamMember(row);
+  }
+
+  setTeamAvailability(id: string, status: TeamMember["status"]): TeamMember {
+    this.getTeamMember(id);
+    this.db.prepare("UPDATE team_members SET status=?, updated_at=? WHERE id=?").run(status, isoNow(), id);
+    this.audit("team.member.availability", undefined, id, { status });
+    return this.getTeamMember(id);
   }
 
   private assertEventFree(startAt: string, endAt: string, assignee?: string, exceptId?: string) {

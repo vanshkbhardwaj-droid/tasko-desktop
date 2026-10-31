@@ -39,6 +39,15 @@ test("email drafts stay in the local database until explicitly opened in an emai
   database.db.close();
 });
 
+test("team roster and availability stay local", () => {
+  const database = fresh();
+  const member = database.createTeamMember({ name: "Aisha Rahman", email: "aisha@example.com", role: "manager", capacity: 32, status: "active" });
+  const away = database.setTeamAvailability(member.id, "away");
+  assert.deepEqual({ name: away.name, email: away.email, role: away.role, capacity: away.capacity, status: away.status }, { name: "Aisha Rahman", email: "aisha@example.com", role: "manager", capacity: 32, status: "away" });
+  assert.ok(database.listTeamMembers().some((item) => item.id === member.id));
+  database.db.close();
+});
+
 test("invoice calculations and backups are local", () => {
   const database = fresh();
   const invoice = database.createInvoice({ title: "Design phase", currency: "AED", discount: 50, kind: "invoice", lines: [{ description: "Consultation", quantity: 2, unitPrice: 500, taxRate: 5 }] });

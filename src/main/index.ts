@@ -6,7 +6,7 @@ import { LocalDatabase } from "./database";
 import { createInvoicePdf } from "./pdf";
 import { LocalCopilot } from "./copilot";
 import { LaunchRecovery } from "./recovery";
-import type { EmailDraft, EntityKind, InvoiceDraft } from "@shared/contracts";
+import type { EmailDraft, EntityKind, InvoiceDraft, TeamMember } from "@shared/contracts";
 
 let mainWindow: BrowserWindow | undefined;
 let tray: Tray | undefined;
@@ -17,6 +17,7 @@ const entitySchema = z.enum(["customer", "lead", "job", "task", "invoice", "even
 const recordSchema = z.record(z.string(), z.unknown()).refine((item) => typeof item.title === "string" || item.title === undefined, "Title must be text");
 const invoiceSchema = z.object({ customerId: z.string().optional(), title: z.string().min(1).max(180), currency: z.enum(["AED", "USD", "EUR", "GBP", "SAR"]), discount: z.number().min(0), dueAt: z.string().optional(), kind: z.enum(["invoice", "quote", "credit-note", "receipt"]), lines: z.array(z.object({ description: z.string().min(1), quantity: z.number().positive(), unitPrice: z.number().min(0), taxRate: z.number().min(0).max(100) })).min(1) });
 const emailDraftSchema = z.object({ recipient: z.string().trim().email().max(320), subject: z.string().trim().min(1).max(180), body: z.string().trim().min(1).max(10_000) });
+const teamMemberSchema = z.object({ name: z.string().trim().min(1).max(120), email: z.string().trim().email().max(320).optional(), role: z.enum(["owner", "admin", "manager", "staff"]), capacity: z.number().int().min(1).max(120), status: z.enum(["active", "away"]) });
 
 function rendererEntry() { return join(__dirname, "../renderer/index.html"); }
 function send(channel: string, value: unknown) { mainWindow?.webContents.send(channel, value); }
@@ -91,6 +92,9 @@ function registerIpc() {
     return database.markInboxMessageOpened(message.id);
   });
   ipcMain.handle("inbox:remove", (_event, id) => database.removeInboxMessage(z.string().uuid().parse(id)));
+  ipcMain.handle("team:list", () => database.listTeamMembers());
+  ipcMain.handle("team:create", (_event, member) => database.createTeamMember(teamMemberSchema.parse(member) as Omit<TeamMember, "id" | "createdAt" | "updatedAt">));
+  ipcMain.handle("team:set-availability", (_event, id, status) => database.setTeamAvailability(z.string().uuid().parse(id), z.enum(["active", "away"]).parse(status)));
   ipcMain.handle("copilot:ask", (_event, prompt) => copilot.ask(z.string().min(1).max(4000).parse(prompt)));
   ipcMain.handle("copilot:history", () => copilot.history());
   ipcMain.handle("copilot:forget", () => copilot.forget());

@@ -70,6 +70,8 @@ export type CalendarEvent = RecordItem & {
 export type InvoiceLine = { description: string; quantity: number; unitPrice: number; taxRate: number };
 export type EmailDraft = { recipient: string; subject: string; body: string };
 export type InboxMessage = EmailDraft & { id: string; status: "draft" | "opened"; openedAt?: string; createdAt: string; updatedAt: string };
+export type TeamRole = "owner" | "admin" | "manager" | "staff";
+export type TeamMember = { id: string; name: string; email?: string; role: TeamRole; capacity: number; status: "active" | "away"; createdAt: string; updatedAt: string };
 export type InvoiceDraft = {
   customerId?: string;
   title: string;
@@ -117,6 +119,11 @@ export type TaskoApi = {
     create(draft: EmailDraft): Promise<InboxMessage>;
     openInEmail(id: string): Promise<InboxMessage>;
     remove(id: string): Promise<void>;
+  };
+  team: {
+    list(): Promise<TeamMember[]>;
+    create(member: Omit<TeamMember, "id" | "createdAt" | "updatedAt">): Promise<TeamMember>;
+    setAvailability(id: string, status: TeamMember["status"]): Promise<TeamMember>;
   };
   copilot: {
     ask(prompt: string): Promise<CopilotReply>;

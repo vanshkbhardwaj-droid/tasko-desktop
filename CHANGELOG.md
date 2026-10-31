@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5 — 2026-10-31
+
+- Replace the Team placeholder with a local roster, availability controls, and weekly-capacity planning.
+- Add an append-only SQLite migration and validated IPC endpoints for local team members.
+
 ## 0.1.4 — 2026-10-31
 
 - Replace the Inbox placeholder with a local email-draft workspace that opens drafts in the system email app only after an explicit action.
