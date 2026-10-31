@@ -68,6 +68,8 @@ export type CalendarEvent = RecordItem & {
 };
 
 export type InvoiceLine = { description: string; quantity: number; unitPrice: number; taxRate: number };
+export type EmailDraft = { recipient: string; subject: string; body: string };
+export type InboxMessage = EmailDraft & { id: string; status: "draft" | "opened"; openedAt?: string; createdAt: string; updatedAt: string };
 export type InvoiceDraft = {
   customerId?: string;
   title: string;
@@ -109,6 +111,12 @@ export type TaskoApi = {
   invoices: {
     create(draft: InvoiceDraft): Promise<RecordItem>;
     createPdf(id: string): Promise<{ path: string; name: string }>;
+  };
+  inbox: {
+    list(): Promise<InboxMessage[]>;
+    create(draft: EmailDraft): Promise<InboxMessage>;
+    openInEmail(id: string): Promise<InboxMessage>;
+    remove(id: string): Promise<void>;
   };
   copilot: {
     ask(prompt: string): Promise<CopilotReply>;

@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
-import type { AppPreferences, CalendarEvent, DashboardSnapshot, EntityKind, InvoiceDraft, RecordItem } from "@shared/contracts";
+import type { AppPreferences, CalendarEvent, DashboardSnapshot, EmailDraft, EntityKind, InboxMessage, InvoiceDraft, RecordItem } from "@shared/contracts";
 
 type Db = InstanceType<typeof Database>;
 
@@ -43,7 +43,9 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_customers_title ON customers(title);
    CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
    CREATE INDEX IF NOT EXISTS idx_events_range ON calendar_events(start_at, end_at);
-   CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);`
+   CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);`,
+  `CREATE TABLE IF NOT EXISTS inbox_messages (id TEXT PRIMARY KEY, recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', opened_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS idx_inbox_messages_updated ON inbox_messages(updated_at DESC);`
 ];
 
 function decode(row: Record<string, unknown>): RecordItem {
@@ -54,6 +56,10 @@ function decode(row: Record<string, unknown>): RecordItem {
     tags: JSON.parse(String(row.tags ?? "[]")), data: JSON.parse(String(row.data ?? "{}")),
     createdAt: String(row.created_at), updatedAt: String(row.updated_at)
   };
+}
+
+function decodeInboxMessage(row: Record<string, unknown>): InboxMessage {
+  return { id: String(row.id), recipient: String(row.recipient), subject: String(row.subject), body: String(row.body), status: row.status === "opened" ? "opened" : "draft", openedAt: row.opened_at ? String(row.opened_at) : undefined, createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
 }
 
 export class LocalDatabase {
@@ -176,6 +182,38 @@ export class LocalDatabase {
     this.assertEventFree(startAt, endAt, event.assignee, id);
     this.db.prepare("UPDATE calendar_events SET start_at=?, end_at=?, updated_at=? WHERE id=?").run(startAt, endAt, isoNow(), id);
     return this.listEvents().find((item) => item.id === id)!;
+  }
+
+  listInboxMessages(): InboxMessage[] {
+    return (this.db.prepare("SELECT * FROM inbox_messages ORDER BY updated_at DESC").all() as Record<string, unknown>[]).map(decodeInboxMessage);
+  }
+
+  createInboxMessage(draft: EmailDraft): InboxMessage {
+    const id = randomUUID(), now = isoNow();
+    this.db.prepare("INSERT INTO inbox_messages(id,recipient,subject,body,status,opened_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+      .run(id, draft.recipient, draft.subject, draft.body, "draft", null, now, now);
+    this.audit("inbox.draft.created", undefined, id, { recipient: draft.recipient, subject: draft.subject });
+    return this.getInboxMessage(id);
+  }
+
+  getInboxMessage(id: string): InboxMessage {
+    const row = this.db.prepare("SELECT * FROM inbox_messages WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    if (!row) throw new Error("The selected email draft no longer exists.");
+    return decodeInboxMessage(row);
+  }
+
+  markInboxMessageOpened(id: string): InboxMessage {
+    const now = isoNow();
+    this.getInboxMessage(id);
+    this.db.prepare("UPDATE inbox_messages SET status='opened', opened_at=?, updated_at=? WHERE id=?").run(now, now, id);
+    this.audit("inbox.draft.opened", undefined, id);
+    return this.getInboxMessage(id);
+  }
+
+  removeInboxMessage(id: string) {
+    const changes = this.db.prepare("DELETE FROM inbox_messages WHERE id = ?").run(id).changes;
+    if (!changes) throw new Error("The selected email draft no longer exists.");
+    this.audit("inbox.draft.removed", undefined, id);
   }
 
   private assertEventFree(startAt: string, endAt: string, assignee?: string, exceptId?: string) {

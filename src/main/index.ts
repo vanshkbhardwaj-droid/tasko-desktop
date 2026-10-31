@@ -6,7 +6,7 @@ import { LocalDatabase } from "./database";
 import { createInvoicePdf } from "./pdf";
 import { LocalCopilot } from "./copilot";
 import { LaunchRecovery } from "./recovery";
-import type { EntityKind, InvoiceDraft } from "@shared/contracts";
+import type { EmailDraft, EntityKind, InvoiceDraft } from "@shared/contracts";
 
 let mainWindow: BrowserWindow | undefined;
 let tray: Tray | undefined;
@@ -16,6 +16,7 @@ let launchRecovery: LaunchRecovery;
 const entitySchema = z.enum(["customer", "lead", "job", "task", "invoice", "event", "expense"]);
 const recordSchema = z.record(z.string(), z.unknown()).refine((item) => typeof item.title === "string" || item.title === undefined, "Title must be text");
 const invoiceSchema = z.object({ customerId: z.string().optional(), title: z.string().min(1).max(180), currency: z.enum(["AED", "USD", "EUR", "GBP", "SAR"]), discount: z.number().min(0), dueAt: z.string().optional(), kind: z.enum(["invoice", "quote", "credit-note", "receipt"]), lines: z.array(z.object({ description: z.string().min(1), quantity: z.number().positive(), unitPrice: z.number().min(0), taxRate: z.number().min(0).max(100) })).min(1) });
+const emailDraftSchema = z.object({ recipient: z.string().trim().email().max(320), subject: z.string().trim().min(1).max(180), body: z.string().trim().min(1).max(10_000) });
 
 function rendererEntry() { return join(__dirname, "../renderer/index.html"); }
 function send(channel: string, value: unknown) { mainWindow?.webContents.send(channel, value); }
@@ -79,6 +80,17 @@ function registerIpc() {
   ipcMain.handle("calendar:export-ics", (_event, id) => { const event = database.listEvents().find((item) => item.id === z.string().uuid().parse(id)); if (!event) throw new Error("Appointment not found."); return `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${event.id}\nDTSTART:${event.startAt.replace(/[-:]/g, "").replace(/\.\d+Z/, "Z")}\nDTEND:${event.endAt.replace(/[-:]/g, "").replace(/\.\d+Z/, "Z")}\nSUMMARY:${event.title}\nEND:VEVENT\nEND:VCALENDAR`; });
   ipcMain.handle("invoices:create", (_event, draft) => database.createInvoice(invoiceSchema.parse(draft) as InvoiceDraft));
   ipcMain.handle("invoices:pdf", async (_event, id) => createInvoicePdf(database, z.string().uuid().parse(id), join(app.getPath("documents"), "Tasko"), app.isPackaged ? join(process.resourcesPath, "assets") : join(app.getAppPath(), "assets")));
+  ipcMain.handle("inbox:list", () => database.listInboxMessages());
+  ipcMain.handle("inbox:create", (_event, draft) => database.createInboxMessage(emailDraftSchema.parse(draft) as EmailDraft));
+  ipcMain.handle("inbox:open-in-email", async (_event, id) => {
+    const message = database.getInboxMessage(z.string().uuid().parse(id));
+    const destination = new URL(`mailto:${message.recipient}`);
+    destination.searchParams.set("subject", message.subject);
+    destination.searchParams.set("body", message.body);
+    await shell.openExternal(destination.toString());
+    return database.markInboxMessageOpened(message.id);
+  });
+  ipcMain.handle("inbox:remove", (_event, id) => database.removeInboxMessage(z.string().uuid().parse(id)));
   ipcMain.handle("copilot:ask", (_event, prompt) => copilot.ask(z.string().min(1).max(4000).parse(prompt)));
   ipcMain.handle("copilot:history", () => copilot.history());
   ipcMain.handle("copilot:forget", () => copilot.forget());

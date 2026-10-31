@@ -29,6 +29,16 @@ test("calendar stores appointment details locally and rejects overlapping appoin
   database.db.close();
 });
 
+test("email drafts stay in the local database until explicitly opened in an email app", () => {
+  const database = fresh();
+  const draft = database.createInboxMessage({ recipient: "client@example.com", subject: "Design update", body: "Your local draft." });
+  assert.deepEqual(database.listInboxMessages().map((message) => ({ recipient: message.recipient, subject: message.subject, body: message.body, status: message.status })), [{ recipient: "client@example.com", subject: "Design update", body: "Your local draft.", status: "draft" }]);
+  const opened = database.markInboxMessageOpened(draft.id);
+  assert.equal(opened.status, "opened");
+  assert.ok(opened.openedAt);
+  database.db.close();
+});
+
 test("invoice calculations and backups are local", () => {
   const database = fresh();
   const invoice = database.createInvoice({ title: "Design phase", currency: "AED", discount: 50, kind: "invoice", lines: [{ description: "Consultation", quantity: 2, unitPrice: 500, taxRate: 5 }] });

@@ -9,6 +9,7 @@ const api: TaskoApi = {
   },
   calendar: { list: (range) => ipcRenderer.invoke("calendar:list", range), move: (id, startAt, endAt) => ipcRenderer.invoke("calendar:move", id, startAt, endAt), exportIcs: (id) => ipcRenderer.invoke("calendar:export-ics", id) },
   invoices: { create: (draft) => ipcRenderer.invoke("invoices:create", draft), createPdf: (id) => ipcRenderer.invoke("invoices:pdf", id) },
+  inbox: { list: () => ipcRenderer.invoke("inbox:list"), create: (draft) => ipcRenderer.invoke("inbox:create", draft), openInEmail: (id) => ipcRenderer.invoke("inbox:open-in-email", id), remove: (id) => ipcRenderer.invoke("inbox:remove", id) },
   copilot: { ask: (prompt) => ipcRenderer.invoke("copilot:ask", prompt), history: () => ipcRenderer.invoke("copilot:history"), forget: () => ipcRenderer.invoke("copilot:forget") },
   system: { backup: () => ipcRenderer.invoke("system:backup"), chooseBackupFolder: () => ipcRenderer.invoke("system:choose-backup-folder"), openPath: (path) => ipcRenderer.invoke("system:open-path", path), checkForUpdates: () => ipcRenderer.invoke("system:check-updates"), signInToSync: () => ipcRenderer.invoke("system:sign-in"), setBadge: (count) => ipcRenderer.invoke("system:set-badge", count) }
 };

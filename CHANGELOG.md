@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 — 2026-10-31
+
+- Replace the Inbox placeholder with a local email-draft workspace that opens drafts in the system email app only after an explicit action.
+- Add an append-only SQLite migration and validated IPC endpoints for local inbox messages.
+
 ## 0.1.3 — 2026-10-31
 
 - Add a local Calendar appointment composer with time validation, travel buffers, and the existing per-person conflict prevention.
