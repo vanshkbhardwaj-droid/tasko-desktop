@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 — 2026-10-31
+
+- Add a local Calendar appointment composer with time validation, travel buffers, and the existing per-person conflict prevention.
+- Show the application version supplied by the installed desktop runtime instead of a stale hard-coded value.
+
 ## 0.1.2 — 2026-10-24
 
 - Make CI build unsigned installers without implicit publishing, so release artifacts do not require a personal GitHub token in the workflow.

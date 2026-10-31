@@ -18,11 +18,13 @@ test("records persist locally and a lead can convert without creating the owner 
   database.db.close();
 });
 
-test("calendar rejects overlapping appointments for the same person", () => {
+test("calendar stores appointment details locally and rejects overlapping appointments for the same person", () => {
   const database = fresh();
   const start = "2026-10-24T09:00:00.000Z";
   const end = "2026-10-24T10:00:00.000Z";
-  database.create("event", { title: "First visit", startAt: start, endAt: end, assignee: "Aisha" });
+  const appointment = database.create("event", { title: "First visit", subtitle: "Cedar Studio", startAt: start, endAt: end, assignee: "Aisha", travelMinutes: 25 });
+  const saved = database.listEvents().find((event) => event.id === appointment.id);
+  assert.deepEqual(saved && { title: saved.title, subtitle: saved.subtitle, startAt: saved.startAt, endAt: saved.endAt, assignee: saved.assignee, travelMinutes: saved.travelMinutes }, { title: "First visit", subtitle: "Cedar Studio", startAt: start, endAt: end, assignee: "Aisha", travelMinutes: 25 });
   assert.throws(() => database.create("event", { title: "Overlap", startAt: "2026-10-24T09:30:00.000Z", endAt: "2026-10-24T10:30:00.000Z", assignee: "Aisha" }), /overlaps/);
   database.db.close();
 });
