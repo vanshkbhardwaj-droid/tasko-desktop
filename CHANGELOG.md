@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6 — 2026-10-31
+
+- Redesign the desktop splash and first-run setup with a calmer, product-led layout, clearer local-first choices, and reduced-motion support.
+- Strengthen dark-theme contrast for text, inputs, navigation, and workspace surfaces.
+
 ## 0.1.5 — 2026-10-31
 
 - Replace the Team placeholder with a local roster, availability controls, and weekly-capacity planning.
