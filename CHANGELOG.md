@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.7 — 2026-10-31
+
+- Fix the macOS startup crash caused by enabling Electron's browser-process V8 snapshot fuse without shipping its required snapshot file.
+- Keep the secure Electron fuse set while using the standard V8 startup snapshot that is included in the macOS bundle.
+
 ## 0.1.6 — 2026-10-31
 
 - Redesign the desktop splash and first-run setup with a calmer, product-led layout, clearer local-first choices, and reduced-motion support.

@@ -19,6 +19,17 @@ test("the desktop renderer is local-only and contains no remote window loader", 
   assert.match(main, /setWindowOpenHandler/);
 });
 
+test("the packaged desktop configuration does not require a missing browser V8 snapshot", () => {
+  const packageConfig = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
+    build: { electronFuses: Record<string, boolean> };
+  };
+
+  assert.equal(packageConfig.build.electronFuses.runAsNode, false);
+  assert.equal(packageConfig.build.electronFuses.enableEmbeddedAsarIntegrityValidation, true);
+  assert.equal(packageConfig.build.electronFuses.onlyLoadAppFromAsar, true);
+  assert.equal(packageConfig.build.electronFuses.loadBrowserProcessSpecificV8Snapshot, false);
+});
+
 test("desktop source has no browser-install artefacts", () => {
   const sourceFiles = walk(join(root, "src"));
   const names = sourceFiles.map((path) => path.toLowerCase());
