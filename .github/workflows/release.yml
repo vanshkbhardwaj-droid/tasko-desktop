@@ -1,41 +1,135 @@
 name: Build desktop installers
 
+permissions:
+  contents: write
+
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
-      channel:
-        description: Release channel
+      tag:
+        description: Existing version tag to publish (for example v0.1.8)
         required: true
-        default: stable
-        type: choice
-        options: [stable, beta]
+        type: string
 
 jobs:
   macos:
     runs-on: macos-14
+    env:
+      CSC_LINK: ${{ secrets.TASKO_MACOS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.TASKO_MACOS_CSC_KEY_PASSWORD }}
+      APPLE_ID: ${{ secrets.TASKO_APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.TASKO_APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.TASKO_APPLE_TEAM_ID }}
+    outputs:
+      signature_status: ${{ steps.signing.outputs.status }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run model:download
       - run: npm run verify
       - run: npm run make:mac
-      - run: npm run size:check
+      - run: npm run size:check -- --platform=macos
+      - id: signing
+        name: Verify macOS signing state
+        shell: bash
+        run: |
+          set -o pipefail
+          if codesign --verify --deep --strict --verbose=2 "release/mac/Tasko.app" && codesign -dv --verbose=4 "release/mac/Tasko.app" 2>&1 | grep -q "Authority=Developer ID Application:"; then
+            echo "status=signed" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=unsigned" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/upload-artifact@v4
-        with: { name: tasko-macos, path: release/* }
+        with:
+          name: tasko-macos
+          path: |
+            release/*.dmg
+            release/*.dmg.blockmap
+            release/latest-mac.yml
+          if-no-files-found: error
   windows:
-    runs-on: windows-2025
+    runs-on: windows-latest
+    env:
+      CSC_LINK: ${{ secrets.TASKO_WINDOWS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.TASKO_WINDOWS_CSC_KEY_PASSWORD }}
+    outputs:
+      signature_status: ${{ steps.signing.outputs.status }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run model:download
       - run: npm run verify
       - run: npm run make:windows
-      - run: npm run size:check
+      - run: npm run size:check -- --platform=windows
+      - name: Smoke test the x64 NSIS installer
+        shell: pwsh
+        run: ./scripts/test-windows-installer.ps1
+      - id: signing
+        name: Verify Windows signing state
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release -Recurse -File | Where-Object { $_.Name -match '^Tasko-.*-win-x64\.exe$' } | Select-Object -First 1
+          if (-not $installer) { throw "Tasko x64 installer was not found." }
+          $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
+          if ($signature.Status -eq "Valid" -and $null -ne $signature.SignerCertificate) {
+            "status=signed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            "status=unsigned" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
       - uses: actions/upload-artifact@v4
-        with: { name: tasko-windows, path: release/* }
+        with:
+          name: tasko-windows
+          path: |
+            release/*.exe
+            release/*.exe.blockmap
+            release/latest.yml
+          if-no-files-found: error
+  release:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.tag != '' }}
+    env:
+      TASKO_RELEASE_REVALIDATE_SECRET: ${{ secrets.TASKO_RELEASE_REVALIDATE_SECRET }}
+      TASKO_RELEASE_REVALIDATE_URL: ${{ secrets.TASKO_RELEASE_REVALIDATE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tasko-*
+          path: release-assets
+          merge-multiple: true
+      - name: Generate checksums and signing status
+        env:
+          TASKO_MACOS_SIGNATURE_STATUS: ${{ needs.macos.outputs.signature_status }}
+          TASKO_WINDOWS_SIGNATURE_STATUS: ${{ needs.windows.outputs.signature_status }}
+          TASKO_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: node scripts/create-release-manifest.mjs release-assets
+      - name: Create or update the development prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: Tasko ${{ inputs.tag || github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
+          body: |
+            Development prerelease. See `TASKO_RELEASE_STATUS.json` and `SHA256SUMS.txt` for the exact per-installer signing state and SHA-256 checksum of every uploaded asset.
+          files: release-assets/*
+          fail_on_unmatched_files: true
+          overwrite_files: true
+      - name: Notify the Tasko website release cache
+        if: ${{ env.TASKO_RELEASE_REVALIDATE_SECRET != '' && env.TASKO_RELEASE_REVALIDATE_URL != '' }}
+        run: |
+          curl --fail --retry 3 --retry-all-errors --request POST "$TASKO_RELEASE_REVALIDATE_URL" \
+            --header "x-tasko-release-revalidate: $TASKO_RELEASE_REVALIDATE_SECRET"

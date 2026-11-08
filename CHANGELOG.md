@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.8 — 2026-11-08
+
+- Publish a real x64 Windows NSIS installer alongside the macOS x64 DMG through the GitHub Release workflow.
+- Add repeatable CI checks for update metadata, release checksums, signing status, and silent Windows install / offline launch / uninstall behaviour.
+- Require macOS `codesign` integrity verification before reporting a Developer ID signed build; signing status does not claim notarization.
+- Replace the arbitrary 300 MB minimum installer gate with a safety check that rejects only broken stubs and unexpectedly huge artifacts; no padding is used.
+- Label unsigned installers as development builds and attach `SHA256SUMS.txt` plus `TASKO_RELEASE_STATUS.json` to each prerelease.
+
 ## 0.1.7 — 2026-10-31
 
 - Fix the macOS startup crash caused by enabling Electron's browser-process V8 snapshot fuse without shipping its required snapshot file.

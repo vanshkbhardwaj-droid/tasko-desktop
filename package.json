@@ -1,6 +1,6 @@
 {
   "name": "tasko-desktop",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "description": "Tasko Mission Control — a local-first desktop workspace.",
   "author": "Tasko",
@@ -15,9 +15,10 @@
     "test:security": "tsx --test tests/security-boundary.test.ts",
     "package:dir": "npm run build && electron-builder --dir",
     "make:mac": "npm run build && electron-builder --mac dmg --x64 --publish never",
-    "make:windows": "npm run build && electron-builder --win nsis --x64 --arm64 --publish never",
+    "make:windows": "npm run build && electron-builder --win nsis --x64 --publish never",
     "model:download": "node scripts/download-local-model.mjs",
     "size:check": "tsx scripts/check-artifact-size.ts",
+    "release:manifest": "node scripts/create-release-manifest.mjs",
     "verify": "npm run typecheck && npm run build && npm test",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -79,7 +80,7 @@
       "gatekeeperAssess": false,
       "extendInfo": { "LSMinimumSystemVersion": "12.0" }
     },
-    "win": { "icon": "build/icon.png", "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }] },
+    "win": { "icon": "build/icon.png", "target": [{ "target": "nsis", "arch": ["x64"] }] },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
